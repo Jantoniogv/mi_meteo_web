@@ -8,7 +8,7 @@
     "start": "node server.js"
   },
   "keywords": [],
-  "author": "Jantoniogv85",
+  "author": "Jantoniogv",
   "license": "ISC",
   "type": "commonjs"
 }
