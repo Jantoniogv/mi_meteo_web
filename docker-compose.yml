@@ -21,6 +21,3 @@ services:
       - PORT=${API_PORT}
     depends_on:
       - mongodb
-
-volumes:
-  meteo-data:
