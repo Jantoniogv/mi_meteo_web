@@ -1,17 +1,4 @@
 services:
-  # Nginx Proxy Manager
-  npm:
-    image: 'jc21/nginx-proxy-manager:latest'
-    container_name: meteo-proxy
-    restart: always
-    ports:
-      - '${NPM_HTTP_PORT}:80'
-      - '${NPM_HTTPS_PORT}:443'
-      - '${NPM_ADMIN_PORT}:81'
-    volumes:
-      - ./npm-data:/data
-      - ./npm-letsencrypt:/etc/letsencrypt
-
   # Base de Datos
   mongodb:
     image: mongo:latest
