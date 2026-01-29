@@ -20,4 +20,5 @@ services:
       - MONGO_URL=mongodb://${MONGO_ROOT_USER}:${MONGO_ROOT_PASSWORD}@mongodb:27017/${MONGO_DB_NAME}?authSource=admin
       - PORT=${API_PORT}
     depends_on:
-      - mongodb
+      mongodb:
+        condition: service_healthy
