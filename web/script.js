@@ -103,29 +103,43 @@ function renderMarkers() {
 }
 
 async function loadDetail(tipo) {
+    // 1. Resetear UI
     document.getElementById('custom-filters').classList.add('hidden');
-    let url = `/api/estacion/${selectedEstacionId}/`;
+    if (myChart) myChart.destroy();
 
+    let url = `/api/estacion/${selectedEstacionId}/historico`;
+    const fin = new Date().toISOString();
+    let inicio = new Date();
+    let agrupar = 'hour'; // Por defecto para "Hoy"
+
+    // 2. Definir rangos según la pestaña
     if (tipo === 'hoy') {
-        url += 'resumen-hoy'; // Tu endpoint de medias de hoy
-    } else {
-        // Para 7d y 12m usamos el endpoint histórico con rangos calculados
-        const fin = new Date().toISOString();
-        let inicio = new Date();
-        let agrupar = 'day';
-
-        if (tipo === '7d') {
-            inicio.setDate(inicio.getDate() - 7);
-        } else if (tipo === '12m') {
-            inicio.setFullYear(inicio.getFullYear() - 1);
-            agrupar = 'month';
-        }
-        url = `/api/estacion/${selectedEstacionId}/historico?inicio=${inicio.toISOString()}&fin=${fin}&agrupar=${agrupar}`;
+        inicio.setHours(0, 0, 0, 0); // Desde las 00:00 de hoy
+        agrupar = 'hour';
+    } else if (tipo === '7d') {
+        inicio.setDate(inicio.getDate() - 7);
+        agrupar = 'day';
+    } else if (tipo === '12m') {
+        inicio.setFullYear(inicio.getFullYear() - 1);
+        agrupar = 'month';
     }
 
-    const res = await fetch(url);
-    const data = await res.json();
-    renderDetail(data);
+    // 3. Construir URL con parámetros
+    const query = `?inicio=${inicio.toISOString()}&fin=${fin}&agrupar=${agrupar}`;
+
+    try {
+        const res = await fetch(url + query);
+        const data = await res.json();
+
+        if (!data || data.length === 0) {
+            document.getElementById('detail-body').innerHTML = '<tr><td colspan="3">No hay datos en este periodo</td></tr>';
+            return;
+        }
+
+        renderDetail(data, agrupar);
+    } catch (e) {
+        console.error("Error cargando detalles:", e);
+    }
 }
 
 async function loadCustomData() {
@@ -143,25 +157,39 @@ async function loadCustomData() {
 
 // --- RENDERIZADO DE TABLA Y GRÁFICO ---
 
-function renderDetail(data) {
+function renderDetail(registros, agrupar) {
     const tbody = document.getElementById('detail-body');
     const thead = document.getElementById('detail-head');
 
-    // Si la data es un objeto único (resumen-hoy), la metemos en un array
-    const registros = Array.isArray(data) ? data : [data];
+    // Encabezado dinámico según agrupación
+    thead.innerHTML = `<tr>
+        <th>${agrupar === 'hour' ? 'Hora' : 'Fecha'}</th>
+        <th>Temp Media</th>
+        <th>Lluvia Total</th>
+    </tr>`;
 
-    // Actualizar Tabla
-    thead.innerHTML = `<tr><th>Fecha/Periodo</th><th>Temp Media</th><th>Lluvia Acum.</th></tr>`;
-    tbody.innerHTML = registros.map(r => `
-        <tr>
-            <td>${r.fechaReferencia ? formatMadridTime(r.fechaReferencia) : 'Hoy'}</td>
-            <td>${r.tempPromedio?.toFixed(1) || r.tempMedia?.toFixed(1) || '--'} °C</td>
-            <td>${r.lluviaAcumulada?.toFixed(1) || r.lluviaTotal?.toFixed(1) || '0'} mm</td>
-        </tr>
-    `).join('');
+    // Llenar tabla
+    tbody.innerHTML = registros.map(r => {
+        const fecha = new Date(r.fechaReferencia);
+        let etiqueta = "";
+
+        if (agrupar === 'hour') {
+            etiqueta = fecha.getHours() + ":00";
+        } else if (agrupar === 'day') {
+            etiqueta = fecha.toLocaleDateString('es-ES');
+        } else {
+            etiqueta = fecha.toLocaleString('es-ES', { month: 'long', year: 'numeric' });
+        }
+
+        return `<tr>
+            <td>${etiqueta}</td>
+            <td>${r.tempPromedio.toFixed(1)} °C</td>
+            <td>${r.lluviaAcumulada.toFixed(1)} mm</td>
+        </tr>`;
+    }).join('');
 
     // Actualizar Gráfico
-    updateChart(registros);
+    updateChart(registros, agrupar);
 }
 
 function updateChart(registros) {
