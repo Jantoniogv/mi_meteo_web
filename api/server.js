@@ -1,67 +1,145 @@
 const express = require('express');
-const cors = require('cors');
 const mongoose = require('mongoose');
 const app = express();
 
-const MONGO_URI = process.env.MONGO_URL;
-const PORT = process.env.PORT || 3000;
-
-// Configuración
-app.use(cors());
+// Middleware para que Express entienda los JSON que envían las estaciones
 app.use(express.json());
 
-// --- CONEXIÓN A MONGODB ---
+// 1. CONEXIÓN A LA BASE DE DATOS
+// Usamos variables de entorno para la seguridad (se definen en el docker-compose)
+const MONGO_URI = process.env.MONGO_URL || 'mongodb://admin:password@mongodb:27017/meteoDB?authSource=admin';
+
 mongoose.connect(MONGO_URI)
-    .then(() => console.log("Conectado a MongoDB mediante .env"))
-    .catch(err => console.error("Error de conexión:", err));
+    .then(() => console.log("✅ Conectado a MongoDB"))
+    .catch(err => console.error("❌ Error de conexión:", err));
 
-// --- DEFINICIÓN DEL MODELO ---
-const ClimaSchema = new mongoose.Schema({
-    timestamp: { type: Date, default: Date.now },
+// 2. DEFINICIÓN DEL MODELO (Esquema de los datos)
+const registroSchema = new mongoose.Schema({
+    estacionId: { type: String, required: true, index: true }, // ID único de la estación
+    localizacion: String,
+    coordenadas: { lat: Number, lng: Number },
     temp: Number,
-    prec: Number,
-    wind: Number,
-    hum: Number
+    hum: Number,
+    lluvia: Number,      // Milímetros caídos en los últimos 10 min
+    vientoVel: Number,
+    vientoDir: String,
+    timestamp: { type: Date, default: Date.now, index: true } // Fecha y hora automática
 });
 
-const RegistroClima = mongoose.model('RegistroClima', ClimaSchema);
+const Registro = mongoose.model('Registro', registroSchema);
 
-// --- ENDPOINT 1: Recibir datos de la estación (POST) ---
-app.post('/api/estacion', async (req, res) => {
+// 3. RUTAS (ENDPOINTS)
+
+/**
+ * POST /api/ingesta
+ * Recibe los datos de las estaciones DIY cada 10 minutos
+ */
+app.post('/api/ingesta', async (req, res) => {
     try {
-        const nuevoRegistro = new RegistroClima(req.body);
-        await nuevoRegistro.save();
-        console.log("Registro guardado en BD:", req.body);
-        res.status(201).json({ status: "success" });
-    } catch (err) {
-        res.status(500).json({ error: "Error al guardar" });
+        const nuevoDato = new Registro(req.body);
+        await nuevoDato.save();
+        res.status(201).json({ status: "ok", mensaje: "Dato guardado" });
+    } catch (error) {
+        res.status(400).json({ status: "error", detalle: error.message });
     }
 });
 
-// --- ENDPOINT 2: Servir datos a la Web (GET) ---
-app.get('/api/datos', async (req, res) => {
+/**
+ * GET /api/estacion/:id/ultimo
+ * Devuelve el registro más reciente de una estación específica
+ */
+app.get('/api/estacion/:id/ultimo', async (req, res) => {
     try {
-        // Obtenemos los últimos 24 registros ordenados por fecha
-        const registros = await RegistroClima.find().sort({ timestamp: -1 }).limit(24);
-
-        // Invertimos para que el gráfico se vea de izquierda (viejo) a derecha (nuevo)
-        const registrosOrdenados = registros.reverse();
-
-        // Formateamos los datos para que el script.js los entienda directamente
-        const response = {
-            labels: registrosOrdenados.map(r => r.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })),
-            temp: registrosOrdenados.map(r => r.temp),
-            prec: registrosOrdenados.map(r => r.prec),
-            wind: registrosOrdenados.map(r => r.wind),
-            hum: registrosOrdenados.map(r => r.hum)
-        };
-
-        res.json(response);
-    } catch (err) {
-        res.status(500).json({ error: "Error al recuperar datos" });
+        // Buscamos por ID y ordenamos por tiempo descendente (-1) para sacar el último
+        const ultimo = await Registro.findOne({ estacionId: req.params.id }).sort({ timestamp: -1 });
+        res.json(ultimo || { mensaje: "Estación no encontrada" });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
     }
 });
 
-app.listen(PORT, () => {
-    console.log(`Servidor con MongoDB en http://localhost:${PORT}`);
+/**
+ * GET /api/estacion/:id/resumen-hoy
+ * Calcula medias y acumulados desde las 00:00 hasta ahora
+ */
+app.get('/api/estacion/:id/resumen-hoy', async (req, res) => {
+    try {
+        const inicioDia = new Date();
+        inicioDia.setHours(0, 0, 0, 0); // Forzamos las 00:00:00 del día actual
+
+        // Usamos el Aggregation Framework de MongoDB (como una tubería de procesado)
+        const resumen = await Registro.aggregate([
+            {
+                $match: {
+                    estacionId: req.params.id,
+                    timestamp: { $gte: inicioDia }
+                }
+            },
+            {
+                $group: {
+                    _id: "$estacionId",
+                    tempMedia: { $avg: "$temp" },      // Calcula el promedio
+                    humMedia: { $avg: "$hum" },
+                    lluviaTotal: { $sum: "$lluvia" },  // Suma los mm acumulados
+                    vientoMax: { $max: "$vientoVel" }, // Opcional: máxima ráfaga del día
+                    registrosContados: { $sum: 1 }     // Cuántos paquetes han llegado
+                }
+            }
+        ]);
+
+        res.json(resumen[0] || { mensaje: "Sin datos hoy" });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+/**
+ * GET /api/estacion/:id/historico
+ * Permite filtrar por rango y elegir cómo agrupar los datos (hora, día, mes)
+ * Query params: ?inicio=ISO-DATE&fin=ISO-DATE&agrupar=hour|day|month
+ */
+app.get('/api/estacion/:id/historico', async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { inicio, fin, agrupar } = req.query;
+
+        // Construimos el objeto de agrupación dinámico según la petición
+        let idAgrupacion = { year: { $year: "$timestamp" } };
+        if (agrupar === 'month' || agrupar === 'day' || agrupar === 'hour') {
+            idAgrupacion.month = { $month: "$timestamp" };
+        }
+        if (agrupar === 'day' || agrupar === 'hour') {
+            idAgrupacion.day = { $dayOfMonth: "$timestamp" };
+        }
+        if (agrupar === 'hour') {
+            idAgrupacion.hour = { $hour: "$timestamp" };
+        }
+
+        const datos = await Registro.aggregate([
+            {
+                $match: {
+                    estacionId: id,
+                    timestamp: { $gte: new Date(inicio), $lte: new Date(fin) }
+                }
+            },
+            {
+                $group: {
+                    _id: idAgrupacion,
+                    tempPromedio: { $avg: "$temp" },
+                    lluviaAcumulada: { $sum: "$lluvia" },
+                    fechaReferencia: { $first: "$timestamp" } // Para facilitar el ordenado
+                }
+            },
+            { $sort: { fechaReferencia: 1 } } // Orden cronológico
+        ]);
+
+        res.json(datos);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, '0.0.0.0', () => {
+    console.log(`🚀 API Meteorológica corriendo en puerto ${PORT}`);
 });
