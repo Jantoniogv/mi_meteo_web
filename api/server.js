@@ -45,6 +45,42 @@ app.post('/api/ingesta', async (req, res) => {
 });
 
 /**
+ * GET /api/estaciones/estado-actual
+ * Devuelve el registro más reciente de todas las estaciones
+ */
+app.get('/api/estaciones/estado-actual', async (req, res) => {
+    try {
+        const estadoActual = await Registro.aggregate([
+            { $sort: { timestamp: -1 } },
+            {
+                $group: {
+                    _id: "$estacionId", // El ID único de la estación es la clave del grupo
+                    ultimoRegistro: { $first: "$$ROOT" }
+                }
+            },
+            {
+                $project: {
+                    // Mantenemos el ID de la estación y extraemos los datos
+                    estacionId: "$_id",
+                    _id: 0, // Ocultamos el _id interno de Mongo para no confundir
+                    localizacion: "$ultimoRegistro.localizacion",
+                    coordenadas: "$ultimoRegistro.coordenadas",
+                    temp: "$ultimoRegistro.temp",
+                    hum: "$ultimoRegistro.hum",
+                    lluvia: "$ultimoRegistro.lluvia",
+                    vientoVel: "$ultimoRegistro.vientoVel",
+                    vientoDir: "$ultimoRegistro.vientoDir",
+                    timestamp: "$ultimoRegistro.timestamp"
+                }
+            }
+        ]);
+        res.json(estadoActual);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+/**
  * GET /api/estacion/:id/ultimo
  * Devuelve el registro más reciente de una estación específica
  */

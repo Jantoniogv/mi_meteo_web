@@ -61,20 +61,45 @@ function showCustomRange() {
 async function loadGeneralData() {
     try {
         const res = await fetch('/api/estaciones/estado-actual');
-        const data = await res.json();
+        estacionesData = await res.json();
+
         const tbody = document.getElementById('tabla-estaciones-body');
 
-        tbody.innerHTML = data.map(est => `
-            <tr onclick="showDetailView('${est._id}', '${est.ultimoRegistro.localizacion}')">
-                <td><strong>${est.ultimoRegistro.localizacion}</strong></td>
-                <td>${est.ultimoRegistro.temp} °C</td>
-                <td>${est.ultimoRegistro.hum} %</td>
-                <td>${est.ultimoRegistro.lluvia} mm</td>
-                <td>${est.ultimoRegistro.vientoVel} km/h</td>
-                <td>${formatMadridTime(est.ultimoRegistro.timestamp)}</td>
+        tbody.innerHTML = estacionesData.map(est => `
+            <tr onclick="showDetailView('${est.estacionId}', '${est.localizacion}')">
+                <td><strong>${est.localizacion}</strong></td>
+                <td>${est.temp} °C</td>
+                <td>${est.hum} %</td>
+                <td>${est.lluvia} mm</td>
+                <td>${est.vientoVel} km/h</td>
+                <td>${formatMadridTime(est.timestamp)}</td>
             </tr>
         `).join('');
-    } catch (e) { console.error("Error cargando generales", e); }
+
+        renderMarkers();
+    } catch (e) { console.error("Error cargando estaciones:", e); }
+}
+
+function renderMarkers() {
+    if (!map) return;
+
+    estacionesData.forEach(est => {
+        if (est.coordenadas?.lat && est.coordenadas?.lng) {
+            const marker = L.marker([est.coordenadas.lat, est.coordenadas.lng]).addTo(map);
+
+            // Aquí usamos est.estacionId para que el botón sepa a quién llamar
+            marker.bindPopup(`
+                <div style="text-align:center; font-family: sans-serif;">
+                    <h3 style="margin:0 0 5px 0">${est.localizacion}</h3>
+                    <p style="margin:0">${est.temp} °C | ${est.hum} % Hum.</p>
+                    <button class="btn-map" style="margin-top:10px" 
+                        onclick="showDetailView('${est.estacionId}', '${est.localizacion}')">
+                        Ver Datos Detallados
+                    </button>
+                </div>
+            `);
+        }
+    });
 }
 
 async function loadDetail(tipo) {
