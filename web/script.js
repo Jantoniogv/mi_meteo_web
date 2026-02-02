@@ -1,158 +1,190 @@
-const modal = document.getElementById("mapModal");
-const map = L.map('map').setView([41.64, -0.88], 6);
-L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+let map, myChart;
+let selectedEstacionId = null;
 
-document.getElementById('openMapBtn').onclick = () => {
-    modal.style.display = "block";
-    setTimeout(() => map.invalidateSize(), 200);
+// --- UTILIDADES ---
+
+// Formatea fecha a hora local Madrid
+const formatMadridTime = (dateStr) => {
+    return new Intl.DateTimeFormat('es-ES', {
+        timeZone: 'Europe/Madrid',
+        dateStyle: 'short',
+        timeStyle: 'medium'
+    }).format(new Date(dateStr));
 };
-document.querySelector('.close').onclick = () => modal.style.display = "none";
 
-let currentChart;
-let lastData = { labels: [], temp: [], prec: [], wind: [] };
-let activeVar = 'temp';
+// --- LÓGICA DE INTERFAZ (VISTAS Y MODAL) ---
 
-const stations = [
-    { name: "Los Juncares", id: "local", lat: 0, lon: 0 },
-    { name: "Zaragoza", lat: 41.6483, lon: -0.8891 },
-    { name: "Madrid", lat: 40.4167, lon: -3.7033 },
-    { name: "Barcelona", lat: 41.3887, lon: 2.1589 },
-    { name: "Sevilla", lat: 37.3828, lon: -5.9731 }
-];
+const modal = document.getElementById("mapModal");
+const btnMap = document.getElementById("openMap");
+const spanClose = document.getElementsByClassName("close")[0];
 
-let state = { station: stations[0], scale: 'hourly' };
+btnMap.onclick = () => {
+    modal.style.display = "block";
+    initMap();
+};
 
-stations.forEach(st => {
-    L.marker([st.lat, st.lon]).addTo(map).on('click', () => {
-        state.station = st;
-        document.getElementById('stationName').innerText = st.name;
-        modal.style.display = "none";
-        fetchData();
-    });
-});
+spanClose.onclick = () => modal.style.display = "none";
 
-document.getElementById('timeScale').onchange = (e) => { state.scale = e.target.value; fetchData(); };
-document.getElementById('exportBtn').onclick = exportToCSV;
+window.onclick = (event) => {
+    if (event.target == modal) modal.style.display = "none";
+};
 
-document.querySelectorAll('.tab-btn').forEach(btn => {
-    btn.onclick = (e) => {
-        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-        e.target.classList.add('active');
-        activeVar = e.target.dataset.var;
-        renderChart();
-    };
-});
+function showGeneralView() {
+    document.getElementById('general-view').classList.remove('hidden');
+    document.getElementById('detail-view').classList.add('hidden');
+    loadGeneralData();
+}
 
-async function fetchData() {
-    if (state.station.id === "local") {
-        try {
-            const res = await fetch('/api/datos');
-            const data = await res.json();
+async function showDetailView(id, nombre) {
+    selectedEstacionId = id;
+    document.getElementById('general-view').classList.add('hidden');
+    document.getElementById('detail-view').classList.remove('hidden');
+    document.getElementById('detail-title').innerText = `Estación: ${nombre}`;
+    modal.style.display = "none";
 
-            // Adaptamos los datos locales al formato de la app
-            lastData = data;
-            updateTable();
-            renderChart();
-        } catch (err) {
-            alert("No se pudo conectar con la estación casera. ¿Está el servidor Node encendido?");
+    // Al entrar, cargar por defecto la pestaña "Hoy"
+    setActiveTab(document.querySelector('.tab-btn'));
+    loadDetail('hoy');
+}
+
+function setActiveTab(element) {
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    element.classList.add('active');
+}
+
+function showCustomRange() {
+    document.getElementById('custom-filters').classList.remove('hidden');
+}
+
+// --- LLAMADAS A LA API ---
+
+async function loadGeneralData() {
+    try {
+        const res = await fetch('/api/estaciones/estado-actual');
+        const data = await res.json();
+        const tbody = document.getElementById('tabla-estaciones-body');
+
+        tbody.innerHTML = data.map(est => `
+            <tr onclick="showDetailView('${est._id}', '${est.ultimoRegistro.localizacion}')">
+                <td><strong>${est.ultimoRegistro.localizacion}</strong></td>
+                <td>${est.ultimoRegistro.temp} °C</td>
+                <td>${est.ultimoRegistro.hum} %</td>
+                <td>${est.ultimoRegistro.lluvia} mm</td>
+                <td>${est.ultimoRegistro.vientoVel} km/h</td>
+                <td>${formatMadridTime(est.ultimoRegistro.timestamp)}</td>
+            </tr>
+        `).join('');
+    } catch (e) { console.error("Error cargando generales", e); }
+}
+
+async function loadDetail(tipo) {
+    document.getElementById('custom-filters').classList.add('hidden');
+    let url = `/api/estacion/${selectedEstacionId}/`;
+
+    if (tipo === 'hoy') {
+        url += 'resumen-hoy'; // Tu endpoint de medias de hoy
+    } else {
+        // Para 7d y 12m usamos el endpoint histórico con rangos calculados
+        const fin = new Date().toISOString();
+        let inicio = new Date();
+        let agrupar = 'day';
+
+        if (tipo === '7d') {
+            inicio.setDate(inicio.getDate() - 7);
+        } else if (tipo === '12m') {
+            inicio.setFullYear(inicio.getFullYear() - 1);
+            agrupar = 'month';
         }
-        return; // Salimos para no ejecutar la llamada a Open-Meteo
-    }
-    const { lat, lon } = state.station;
-    let url = "";
-    const now = new Date();
-    const formatDate = (date) => date.toISOString().split('T')[0];
-
-    if (state.scale === 'hourly') {
-        url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&hourly=temperature_2m,precipitation,wind_speed_10m&forecast_days=1`;
-    }
-    else if (state.scale === 'daily') {
-        const sevenDaysAgo = new Date();
-        sevenDaysAgo.setDate(now.getDate() - 7);
-        url = `https://archive-api.open-meteo.com/v1/archive?latitude=${lat}&longitude=${lon}&start_date=${formatDate(sevenDaysAgo)}&end_date=${formatDate(now)}&daily=temperature_2m_mean,precipitation_sum,wind_speed_10m_max&timezone=auto`;
-    }
-    else if (state.scale === 'monthly') {
-        url = `https://archive-api.open-meteo.com/v1/archive?latitude=${lat}&longitude=${lon}&start_date=2025-01-01&end_date=2025-12-31&daily=temperature_2m_mean,precipitation_sum,wind_speed_10m_max&timezone=auto`;
-    }
-    else {
-        url = `https://archive-api.open-meteo.com/v1/archive?latitude=${lat}&longitude=${lon}&start_date=2020-01-01&end_date=2025-12-31&daily=temperature_2m_mean,precipitation_sum,wind_speed_10m_max&timezone=auto`;
+        url = `/api/estacion/${selectedEstacionId}/historico?inicio=${inicio.toISOString()}&fin=${fin}&agrupar=${agrupar}`;
     }
 
     const res = await fetch(url);
     const data = await res.json();
-    processData(data);
+    renderDetail(data);
 }
 
-function processData(data) {
-    if (state.scale === 'hourly') {
-        lastData.labels = data.hourly.time.map(t => t.split('T')[1]);
-        lastData.temp = data.hourly.temperature_2m;
-        lastData.prec = data.hourly.precipitation;
-        lastData.wind = data.hourly.wind_speed_10m;
-    } else {
-        const isAgregated = (state.scale === 'monthly' || state.scale === 'yearly');
-        const rawTime = data.daily.time;
-        const rawTemp = data.daily.temperature_2m_mean;
-        const rawPrec = data.daily.precipitation_sum;
-        const rawWind = data.daily.wind_speed_10m_max;
+async function loadCustomData() {
+    const inicio = document.getElementById('date-start').value;
+    const fin = document.getElementById('date-end').value;
+    const agrupar = document.getElementById('group-by').value;
 
-        if (!isAgregated) {
-            lastData.labels = rawTime; lastData.temp = rawTemp; lastData.prec = rawPrec; lastData.wind = rawWind;
-        } else {
-            const grouped = {};
-            rawTime.forEach((t, i) => {
-                const key = (state.scale === 'yearly') ? t.substring(0, 4) : t.substring(0, 7);
-                if (!grouped[key]) grouped[key] = { t: [], p: [], w: [] };
-                grouped[key].t.push(rawTemp[i]);
-                grouped[key].p.push(rawPrec[i]);
-                grouped[key].w.push(rawWind[i]);
-            });
-            lastData.labels = Object.keys(grouped);
-            lastData.temp = lastData.labels.map(k => (grouped[k].t.reduce((a, b) => a + b, 0) / grouped[k].t.length).toFixed(1));
-            lastData.prec = lastData.labels.map(k => (grouped[k].p.reduce((a, b) => a + b, 0)).toFixed(1));
-            lastData.wind = lastData.labels.map(k => (grouped[k].w.reduce((a, b) => a + b, 0) / grouped[k].w.length).toFixed(1));
-        }
-    }
-    updateTable();
-    renderChart();
+    if (!inicio || !fin) return alert("Selecciona fechas");
+
+    const url = `/api/estacion/${selectedEstacionId}/historico?inicio=${new Date(inicio).toISOString()}&fin=${new Date(fin).toISOString()}&agrupar=${agrupar}`;
+    const res = await fetch(url);
+    const data = await res.json();
+    renderDetail(data);
 }
 
-function updateTable() {
-    document.getElementById('tableHeader').innerHTML = `<th>Periodo</th><th>Temp Med</th><th>Lluvia</th><th>Viento Med</th>`;
-    document.getElementById('tableBody').innerHTML = lastData.labels.map((l, i) => `
-        <tr><td>${l}</td><td>${lastData.temp[i]}°C</td><td>${lastData.prec[i]}mm</td><td>${lastData.wind[i]}km/h</td></tr>
+// --- RENDERIZADO DE TABLA Y GRÁFICO ---
+
+function renderDetail(data) {
+    const tbody = document.getElementById('detail-body');
+    const thead = document.getElementById('detail-head');
+
+    // Si la data es un objeto único (resumen-hoy), la metemos en un array
+    const registros = Array.isArray(data) ? data : [data];
+
+    // Actualizar Tabla
+    thead.innerHTML = `<tr><th>Fecha/Periodo</th><th>Temp Media</th><th>Lluvia Acum.</th></tr>`;
+    tbody.innerHTML = registros.map(r => `
+        <tr>
+            <td>${r.fechaReferencia ? formatMadridTime(r.fechaReferencia) : 'Hoy'}</td>
+            <td>${r.tempPromedio?.toFixed(1) || r.tempMedia?.toFixed(1) || '--'} °C</td>
+            <td>${r.lluviaAcumulada?.toFixed(1) || r.lluviaTotal?.toFixed(1) || '0'} mm</td>
+        </tr>
     `).join('');
+
+    // Actualizar Gráfico
+    updateChart(registros);
 }
 
-function renderChart() {
-    const ctx = document.getElementById('weatherChart').getContext('2d');
-    if (currentChart) currentChart.destroy();
-    // Dentro de renderChart()
-    const config = {
-        temp: { label: 'Temp. Media (°C)', data: lastData.temp, color: '#e67e22', type: 'line' },
-        prec: { label: 'Prec. Total (mm)', data: lastData.prec, color: '#3498db', type: 'bar' },
-        wind: { label: 'Viento Medio (km/h)', data: lastData.wind, color: '#95a5a6', type: 'line' },
-        hum: { label: 'Humedad (%)', data: lastData.hum, color: '#2ecc71', type: 'line' } // Añadido
-    };
-    const activeConfig = config[activeVar];
-    currentChart = new Chart(ctx, {
-        type: activeConfig.type,
+function updateChart(registros) {
+    const ctx = document.getElementById('detailChart').getContext('2d');
+
+    if (myChart) myChart.destroy();
+
+    const labels = registros.map(r => r.fechaReferencia ? formatMadridTime(r.fechaReferencia).split(',')[0] : 'Hoy');
+    const temps = registros.map(r => r.tempPromedio || r.tempMedia);
+    const lluvias = registros.map(r => r.lluviaAcumulada || r.lluviaTotal);
+
+    myChart = new Chart(ctx, {
+        type: 'line',
         data: {
-            labels: lastData.labels,
-            datasets: [{ label: activeConfig.label, data: activeConfig.data, borderColor: activeConfig.color, backgroundColor: activeConfig.type === 'bar' ? activeConfig.color + '66' : 'transparent', fill: activeConfig.type === 'bar', tension: 0.3 }]
+            labels: labels,
+            datasets: [
+                {
+                    label: 'Temperatura (°C)',
+                    data: temps,
+                    borderColor: '#e74c3c',
+                    yAxisID: 'y'
+                },
+                {
+                    label: 'Lluvia (mm)',
+                    data: lluvias,
+                    backgroundColor: 'rgba(52, 152, 219, 0.5)',
+                    type: 'bar',
+                    yAxisID: 'y1'
+                }
+            ]
         },
-        options: { responsive: true, maintainAspectRatio: false }
+        options: {
+            scales: {
+                y: { type: 'linear', position: 'left', title: { display: true, text: 'Temp °C' } },
+                y1: { type: 'linear', position: 'right', title: { display: true, text: 'Lluvia mm' }, grid: { drawOnChartArea: false } }
+            }
+        }
     });
 }
 
-function exportToCSV() {
-    let csv = "Periodo,Temp_Media_C,Precip_mm,Viento_Med_kmh\n";
-    lastData.labels.forEach((l, i) => { csv += `${l},${lastData.temp[i]},${lastData.prec[i]},${lastData.wind[i]}\n`; });
-    const blob = new Blob([csv], { type: 'text/csv' });
-    const link = document.createElement("a");
-    link.href = URL.createObjectURL(blob);
-    link.download = `MiMeteoWeb_datos.csv`;
-    link.click();
+// --- MAPA ---
+function initMap() {
+    if (!map) {
+        map = L.map('map').setView([40.41, -3.70], 6);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+    }
+    // Aquí cargarías los marcadores desde la API igual que en el ejemplo anterior
 }
 
-fetchData();
+// Inicio
+loadGeneralData();

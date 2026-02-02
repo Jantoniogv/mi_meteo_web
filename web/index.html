@@ -4,18 +4,72 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>MiMeteoWeb</title>
+    <title>Red Meteo DIY</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <link rel="stylesheet" href="style.css">
 </head>
 
 <body>
-    <header class="mini-header">
-        <div class="header-content">
-            <h1>Mi<span>MeteoWeb</span></h1>
-            <button id="openMapBtn" class="icon-btn">📍 Cambiar Estación</button>
+
+    <header class="navbar">
+        <div class="container">
+            <h1>☁️ RED METEO DIY</h1>
+            <button class="btn-map" id="openMap">📍 Mapa Estaciones</button>
         </div>
     </header>
+
+    <main class="container">
+        <section id="general-view">
+            <h2>Últimas Actualizaciones</h2>
+            <div class="table-container">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Localización</th>
+                            <th>Temp</th>
+                            <th>Hum</th>
+                            <th>Lluvia</th>
+                            <th>Viento</th>
+                            <th>Actualización (Madrid)</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tabla-estaciones-body"></tbody>
+                </table>
+            </div>
+        </section>
+
+        <section id="detail-view" class="hidden">
+            <button class="btn-back" onclick="showGeneralView()">← Volver</button>
+            <h2 id="detail-title">Estación: ---</h2>
+
+            <div class="tabs">
+                <button class="tab-btn active" onclick="loadDetail('hoy')">Hoy</button>
+                <button class="tab-btn" onclick="loadDetail('7d')">7 Días</button>
+                <button class="tab-btn" onclick="loadDetail('12m')">12 Meses</button>
+                <button class="tab-btn" onclick="showCustomRange()">Personalizado</button>
+            </div>
+
+            <div class="tab-content">
+                <div id="custom-filters" class="filters hidden">
+                    <input type="date" id="date-start">
+                    <input type="date" id="date-end">
+                    <select id="group-by">
+                        <option value="hour">Horas</option>
+                        <option value="day">Días</option>
+                        <option value="month">Meses</option>
+                    </select>
+                    <button onclick="loadCustomData()">Filtrar</button>
+                </div>
+                <div class="table-container">
+                    <table id="detail-table">
+                        <thead id="detail-head"></thead>
+                        <tbody id="detail-body"></tbody>
+                    </table>
+                </div>
+                <canvas id="detailChart"></canvas>
+            </div>
+        </section>
+    </main>
 
     <div id="mapModal" class="modal">
         <div class="modal-content">
@@ -24,45 +78,10 @@
         </div>
     </div>
 
-    <main class="container">
-        <div class="top-bar">
-            <h2 id="stationName">Zaragoza</h2>
-            <div class="actions">
-                <select id="timeScale">
-                    <option value="hourly">Hoy (Horas)</option>
-                    <option value="daily">Últimos 7 Días</option>
-                    <option value="monthly">Año anterior (Mensual)</option>
-                    <option value="yearly">Histórico (Anual)</option>
-                </select>
-                <button id="exportBtn" class="btn-download">📥 CSV</button>
-            </div>
-        </div>
-
-        <div class="table-container">
-            <table id="weatherTable">
-                <thead>
-                    <tr id="tableHeader"></tr>
-                </thead>
-                <tbody id="tableBody"></tbody>
-            </table>
-        </div>
-
-        <section class="chart-section">
-            <div class="tabs">
-                <button class="tab-btn active" data-var="temp">Temperatura</button>
-                <button class="tab-btn" data-var="hum">Humedad</button>
-                <button class="tab-btn" data-var="prec">Precipitación</button>
-                <button class="tab-btn" data-var="wind">Viento</button>
-            </div>
-            <div class="chart-container">
-                <canvas id="weatherChart"></canvas>
-            </div>
-        </section>
-    </main>
-
-    <footer class="main-footer">
-        <span>Sin cookies ni recopilación de datos | Licencia <a href="https://creativecommons.org/licenses/by-sa/4.0/"
-                target="_blank">CC BY-SA</a></span>
+    <footer>
+        <p>Esta web no utiliza cookies ni recopila datos de ningún tipo.</p>
+        <p>Licencia <a href="https://creativecommons.org/licenses/by-sa/4.0/deed.es" target="_blank">Creative Commons
+                BY-SA 4.0</a></p>
     </footer>
 
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
