@@ -76,7 +76,6 @@ async function loadGeneralData() {
             </tr>
         `).join('');
 
-        renderMarkers();
     } catch (e) { console.error("Error cargando estaciones:", e); }
 }
 
@@ -87,7 +86,7 @@ function renderMarkers() {
         if (est.coordenadas?.lat && est.coordenadas?.lng) {
             const marker = L.marker([est.coordenadas.lat, est.coordenadas.lng]).addTo(map);
             console.log(est.coordenadas.lat);
-            console.log(estacionId);
+            console.log(est.estacionId);
             // Aquí usamos est.estacionId para que el botón sepa a quién llamar
             marker.bindPopup(`
                 <div style="text-align:center; font-family: sans-serif;">
