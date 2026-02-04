@@ -238,6 +238,8 @@ function initMap() {
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
     }
     // Aquí cargarías los marcadores desde la API igual que en el ejemplo anterior
+
+    renderMarkers();
 }
 
 // Inicio
