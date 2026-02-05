@@ -19,6 +19,7 @@ async function loadGeneralData() {
                 <td>${est.presion || '--'} hPa</td>
                 <td>${est.lluvia} mm</td>
                 <td>${est.vientoVel} km/h</td>
+                <td>${est.vientoDir}</td>
                 <td>${formatMadridTime(est.timestamp)}</td>
             </tr>
         `).join('');
@@ -43,17 +44,26 @@ function showDetailView(id, nombre) {
     handlePeriodChange(hoyBtn, 'hoy');
 }
 
+// Maneja el cambio de periodos (Hoy, 7d, 12m)
 function handlePeriodChange(btn, tipo) {
+    // 1. Gestionar apariencia de las pestañas
     document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
     btn.classList.add('active');
-    document.getElementById('custom-filters').classList.add('hidden');
-    loadDetail(tipo);
+
+    // 2. Controlar visibilidad del bloque de rango personalizado
+    const customFilters = document.getElementById('custom-filters');
+
+    if (tipo === 'custom') {
+        customFilters.classList.remove('hidden');
+    } else {
+        customFilters.classList.add('hidden');
+        loadDetail(tipo); // Solo carga automáticamente si no es personalizado
+    }
 }
 
+// Modificamos la función del HTML para que use la misma lógica
 function toggleCustomRange(btn) {
-    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-    btn.classList.add('active');
-    document.getElementById('custom-filters').classList.remove('hidden');
+    handlePeriodChange(btn, 'custom');
 }
 
 function changeVariable(btn, variable) {
@@ -83,11 +93,38 @@ async function loadDetail(tipo) {
 }
 
 async function loadCustomData() {
-    const inicio = document.getElementById('date-start').value;
-    const fin = document.getElementById('date-end').value;
+    const inicioInput = document.getElementById('date-start').value;
+    const finInput = document.getElementById('date-end').value;
     const agrupar = document.getElementById('group-by').value;
-    if (!inicio || !fin) return alert("Selecciona rango");
-    fetchHistorico(new Date(inicio).toISOString(), new Date(fin).toISOString(), agrupar);
+
+    // Validación de campos vacíos
+    if (!inicioInput || !finInput) {
+        alert("⚠️ Por favor, selecciona ambas fechas.");
+        return;
+    }
+
+    const fechaInicio = new Date(inicioInput);
+    const fechaFin = new Date(finInput);
+
+    // Validación lógica: ¿El pasado es antes que el futuro?
+    if (fechaInicio > fechaFin) {
+        alert("❌ La fecha de inicio no puede ser posterior a la fecha de fin.");
+        return;
+    }
+
+    // Feedback visual de carga
+    const btn = document.querySelector('.btn-filter');
+    const originalText = btn.innerText;
+    btn.innerText = "⌛ Cargando...";
+    btn.disabled = true;
+
+    try {
+        await fetchHistorico(fechaInicio.toISOString(), fechaFin.toISOString(), agrupar);
+    } finally {
+        // Restaurar botón
+        btn.innerText = originalText;
+        btn.disabled = false;
+    }
 }
 
 async function fetchHistorico(inicio, fin, agrupar) {
@@ -143,7 +180,33 @@ function updateChart() {
                 tension: 0.3
             }]
         },
-        options: { responsive: true, maintainAspectRatio: false }
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                tooltip: {
+                    callbacks: {
+                        label: function (context) {
+                            let label = context.dataset.label || '';
+                            if (label) label += ': ';
+                            if (context.parsed.y !== null) {
+                                label += context.parsed.y.toFixed(2);
+                            }
+                            return label;
+                        }
+                    }
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: false, // Para que la presión o temperatura no se vean planas
+                    title: {
+                        display: true,
+                        text: configMap[currentVar].label
+                    }
+                }
+            }
+        }
     });
 }
 

@@ -31,6 +31,7 @@
                             <th>Presión</th>
                             <th>Lluvia</th>
                             <th>Viento (Media)</th>
+                            <th>Viento dirección</th>
                             <th>Última Actualización</th>
                         </tr>
                     </thead>
@@ -48,7 +49,7 @@
                 <button class="tab-btn active" onclick="handlePeriodChange(this, 'hoy')">Hoy</button>
                 <button class="tab-btn" onclick="handlePeriodChange(this, '7d')">7 Días</button>
                 <button class="tab-btn" onclick="handlePeriodChange(this, '12m')">12 Meses</button>
-                <button class="tab-btn" onclick="toggleCustomRange(this)">Rango Personalizado</button>
+                <button class="tab-btn" onclick="handlePeriodChange(this, 'custom')">Rango Personalizado</button>
             </div>
 
             <div class="tab-content shadow">

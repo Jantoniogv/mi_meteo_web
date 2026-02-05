@@ -250,3 +250,13 @@ tbody tr:hover {
     color: #3498db;
     text-decoration: none;
 }
+
+#custom-filters {
+    transition: all 0.3s ease;
+    overflow: hidden;
+}
+
+#custom-filters.hidden {
+    display: none;
+    /* Mantener esto para que no ocupe espacio */
+}
