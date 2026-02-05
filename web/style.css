@@ -1,4 +1,4 @@
-/* RESET GENERAL */
+/* --- Base y Layout --- */
 * {
     margin: 0;
     padding: 0;
@@ -6,28 +6,34 @@
 }
 
 body {
-    font-family: sans-serif;
-    background: #f4f7f6;
-    color: #333;
-    line-height: 1.6;
+    font-family: 'Segoe UI', system-ui, sans-serif;
+    background-color: #f0f2f5;
+    color: #1a1a1a;
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
 }
 
 .container {
-    width: 90%;
+    width: 95%;
     max-width: 1200px;
-    margin: auto;
+    margin: 0 auto;
 }
 
 .hidden {
     display: none;
 }
 
-/* NAVBAR */
+.shadow {
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+
+/* --- Navegación --- */
 .navbar {
     background: #2c3e50;
     color: white;
     padding: 1rem 0;
-    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+    margin-bottom: 2rem;
 }
 
 .navbar .container {
@@ -36,13 +42,21 @@ body {
     align-items: center;
 }
 
-/* BOTONES */
+.navbar h1 {
+    font-size: 1.4rem;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+/* --- Botones --- */
 button {
-    cursor: pointer;
     border: none;
-    border-radius: 4px;
-    padding: 0.6rem 1rem;
-    transition: 0.3s;
+    padding: 0.7rem 1.2rem;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: 0.2s;
+    font-weight: 500;
 }
 
 .btn-map {
@@ -50,56 +64,134 @@ button {
     color: white;
 }
 
+.btn-map:hover {
+    background: #2980b9;
+}
+
 .btn-back {
-    background: #7f8c8d;
+    background: #ecf0f1;
+    color: #2c3e50;
+    margin-bottom: 1.5rem;
+}
+
+.btn-filter {
+    background: #27ae60;
     color: white;
-    margin-bottom: 1rem;
+}
+
+/* --- Pestañas --- */
+.tabs-row {
+    display: flex;
+    gap: 8px;
+    margin-bottom: -1px;
 }
 
 .tab-btn {
-    background: #eee;
-    border-bottom: 3px solid transparent;
-    border-radius: 0;
+    background: #dcdde1;
+    color: #2f3640;
+    border-radius: 8px 8px 0 0;
 }
 
 .tab-btn.active {
     background: white;
-    border-bottom: 3px solid #3498db;
+    color: #3498db;
+    border-top: 3px solid #3498db;
     font-weight: bold;
 }
 
-/* TABLAS */
-.table-container {
-    overflow-x: auto;
+.variable-selector {
+    display: flex;
+    gap: 8px;
+    margin: 1.5rem 0;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+.variable-selector span {
+    font-weight: bold;
+    color: #7f8c8d;
+}
+
+.var-btn {
+    background: #f8f9fa;
+    border: 1px solid #dcdde1;
+    font-size: 0.9rem;
+}
+
+.var-btn.active {
+    background: #27ae60;
+    color: white;
+    border-color: #27ae60;
+}
+
+/* --- Contenido --- */
+.tab-content {
     background: white;
-    padding: 1rem;
+    padding: 2rem;
+    border-radius: 0 8px 8px 8px;
+}
+
+.filters-box {
+    background: #f8f9fa;
+    padding: 1.5rem;
     border-radius: 8px;
-    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+    margin-bottom: 2rem;
+    display: flex;
+    gap: 1.5rem;
+    flex-wrap: wrap;
+    align-items: flex-end;
+}
+
+.filter-group {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}
+
+.filter-group input,
+.filter-group select {
+    padding: 0.5rem;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+}
+
+/* --- Tablas --- */
+.table-container {
+    background: white;
+    border-radius: 8px;
+    overflow-x: auto;
 }
 
 table {
     width: 100%;
     border-collapse: collapse;
-    margin: 1rem 0;
 }
 
 th,
 td {
+    padding: 1rem;
     text-align: left;
-    padding: 12px;
-    border-bottom: 1px solid #ddd;
+    border-bottom: 1px solid #edf2f7;
 }
 
 th {
     background: #f8f9fa;
+    color: #718096;
+    text-transform: uppercase;
+    font-size: 0.8rem;
+    letter-spacing: 0.05em;
 }
 
-tr:hover {
-    background: #f1f1f1;
+tbody tr:hover {
+    background-color: #f7fafc;
     cursor: pointer;
 }
 
-/* MODAL */
+.detail-table-mt {
+    margin-top: 2rem;
+}
+
+/* --- Mapa y Modal --- */
 .modal {
     display: none;
     position: fixed;
@@ -108,50 +200,53 @@ tr:hover {
     top: 0;
     width: 100%;
     height: 100%;
-    background: rgba(0, 0, 0, 0.7);
+    background: rgba(0, 0, 0, 0.6);
 }
 
 .modal-content {
     background: white;
     margin: 5% auto;
-    padding: 20px;
-    width: 80%;
-    border-radius: 8px;
+    width: 85%;
+    max-width: 900px;
+    border-radius: 12px;
     position: relative;
+    padding: 10px;
 }
 
-.close {
+.close-modal {
     position: absolute;
     right: 20px;
     top: 10px;
-    font-size: 28px;
+    font-size: 30px;
     cursor: pointer;
+    z-index: 1001;
 }
 
 #map {
     height: 500px;
     width: 100%;
+    border-radius: 8px;
 }
 
-/* PIE DE PÁGINA */
-footer {
+/* --- Gráfico --- */
+.chart-wrapper {
+    background: white;
+    padding: 1rem;
+    position: relative;
+    height: 400px;
+    width: 100%;
+}
+
+/* --- Footer --- */
+.footer {
     background: #2c3e50;
     color: #bdc3c7;
     text-align: center;
     padding: 2rem 0;
-    margin-top: 3rem;
-    font-size: 0.9rem;
+    margin-top: auto;
 }
 
-footer a {
+.footer a {
     color: #3498db;
     text-decoration: none;
-}
-
-/* CHART */
-canvas {
-    background: white;
-    margin-top: 2rem;
-    border-radius: 8px;
-    padding: 10px;
 }

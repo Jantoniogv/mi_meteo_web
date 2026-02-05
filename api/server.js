@@ -20,9 +20,11 @@ const registroSchema = new mongoose.Schema({
     coordenadas: { lat: Number, lng: Number },
     temp: Number,
     hum: Number,
-    lluvia: Number,      // Milímetros caídos en los últimos 10 min
+    lluvia: Number,
     vientoVel: Number,
     vientoDir: String,
+    presion: Number,
+    voltaje_bat: Number,
     timestamp: { type: Date, default: Date.now, index: true } // Fecha y hora automática
 });
 
@@ -70,6 +72,8 @@ app.get('/api/estaciones/estado-actual', async (req, res) => {
                     lluvia: "$ultimoRegistro.lluvia",
                     vientoVel: "$ultimoRegistro.vientoVel",
                     vientoDir: "$ultimoRegistro.vientoDir",
+                    presion: "$ultimoRegistro.presion",
+                    voltaje_bat: "$ultimoRegistro.voltaje_bat",
                     timestamp: "$ultimoRegistro.timestamp"
                 }
             }
@@ -115,9 +119,10 @@ app.get('/api/estacion/:id/resumen-hoy', async (req, res) => {
                 $group: {
                     _id: "$estacionId",
                     tempMedia: { $avg: "$temp" },      // Calcula el promedio
-                    humMedia: { $avg: "$hum" },
+                    humMedia: { $avg: "$hum" },         // Promedio de humedad
+                    presionMedia: { $avg: "$presion" }, // Promedio de presión
                     lluviaTotal: { $sum: "$lluvia" },  // Suma los mm acumulados
-                    vientoMax: { $max: "$vientoVel" }, // Opcional: máxima ráfaga del día
+                    vientoMax: { $avg: "$vientoVel" }, // Promedio medido del día
                     registrosContados: { $sum: 1 }     // Cuántos paquetes han llegado
                 }
             }
@@ -161,8 +166,11 @@ app.get('/api/estacion/:id/historico', async (req, res) => {
             {
                 $group: {
                     _id: idAgrupacion,
-                    tempPromedio: { $avg: "$temp" },
-                    lluviaAcumulada: { $sum: "$lluvia" },
+                    tempMedia: { $avg: "$temp" },       // Promedio de temperatura
+                    humMedia: { $avg: "$hum" },         // Promedio de humedad
+                    presionMedia: { $avg: "$presion" }, // Promedio de presión
+                    lluviaTotal: { $sum: "$lluvia" },   // Suma los mm acumulados
+                    vientoMedio: { $avg: "$vientoVel" },  // Promedio de velocidad del viento
                     fechaReferencia: { $first: "$timestamp" } // Para facilitar el ordenado
                 }
             },

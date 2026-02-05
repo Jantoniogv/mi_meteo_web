@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Red Meteo DIY</title>
+    <title>Red Meteo DIY - Profesional</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <link rel="stylesheet" href="style.css">
 </head>
@@ -13,75 +13,100 @@
 
     <header class="navbar">
         <div class="container">
-            <h1>☁️ RED METEO DIY</h1>
+            <h1><span class="icon">☁️</span> RED METEO DIY</h1>
             <button class="btn-map" id="openMap">📍 Mapa Estaciones</button>
         </div>
     </header>
 
     <main class="container">
         <section id="general-view">
-            <h2>Últimas Actualizaciones</h2>
-            <div class="table-container">
+            <h2 class="section-title">Estado Actual de la Red</h2>
+            <div class="table-container shadow">
                 <table>
                     <thead>
                         <tr>
                             <th>Localización</th>
-                            <th>Temp</th>
-                            <th>Hum</th>
+                            <th>Temperatura</th>
+                            <th>Humedad</th>
+                            <th>Presión</th>
                             <th>Lluvia</th>
-                            <th>Viento</th>
-                            <th>Actualización (Madrid)</th>
+                            <th>Viento (Media)</th>
+                            <th>Última Actualización</th>
                         </tr>
                     </thead>
-                    <tbody id="tabla-estaciones-body"></tbody>
+                    <tbody id="tabla-estaciones-body">
+                    </tbody>
                 </table>
             </div>
         </section>
 
         <section id="detail-view" class="hidden">
-            <button class="btn-back" onclick="showGeneralView()">← Volver</button>
+            <button class="btn-back" onclick="showGeneralView()">← Volver al listado</button>
             <h2 id="detail-title">Estación: ---</h2>
 
-            <div class="tabs">
-                <button class="tab-btn active" onclick="loadDetail('hoy')">Hoy</button>
-                <button class="tab-btn" onclick="loadDetail('7d')">7 Días</button>
-                <button class="tab-btn" onclick="loadDetail('12m')">12 Meses</button>
-                <button class="tab-btn" onclick="showCustomRange()">Personalizado</button>
+            <div class="tabs-row">
+                <button class="tab-btn active" onclick="handlePeriodChange(this, 'hoy')">Hoy</button>
+                <button class="tab-btn" onclick="handlePeriodChange(this, '7d')">7 Días</button>
+                <button class="tab-btn" onclick="handlePeriodChange(this, '12m')">12 Meses</button>
+                <button class="tab-btn" onclick="toggleCustomRange(this)">Rango Personalizado</button>
             </div>
 
-            <div class="tab-content">
-                <div id="custom-filters" class="filters hidden">
-                    <input type="date" id="date-start">
-                    <input type="date" id="date-end">
-                    <select id="group-by">
-                        <option value="hour">Horas</option>
-                        <option value="day">Días</option>
-                        <option value="month">Meses</option>
-                    </select>
-                    <button onclick="loadCustomData()">Filtrar</button>
+            <div class="tab-content shadow">
+                <div id="custom-filters" class="filters-box hidden">
+                    <div class="filter-group">
+                        <label>Desde:</label> <input type="date" id="date-start">
+                    </div>
+                    <div class="filter-group">
+                        <label>Hasta:</label> <input type="date" id="date-end">
+                    </div>
+                    <div class="filter-group">
+                        <label>Agrupar por:</label>
+                        <select id="group-by">
+                            <option value="hour">Horas</option>
+                            <option value="day" selected>Días</option>
+                            <option value="month">Meses</option>
+                            <option value="year">Años</option>
+                        </select>
+                    </div>
+                    <button class="btn-filter" onclick="loadCustomData()">Aplicar Filtro</button>
                 </div>
-                <div class="table-container">
+
+                <div class="variable-selector">
+                    <span>Ver en gráfico:</span>
+                    <button class="var-btn active" onclick="changeVariable(this, 'temp')">Temperatura</button>
+                    <button class="var-btn" onclick="changeVariable(this, 'hum')">Humedad</button>
+                    <button class="var-btn" onclick="changeVariable(this, 'presion')">Presión</button>
+                    <button class="var-btn" onclick="changeVariable(this, 'lluvia')">Lluvia</button>
+                    <button class="var-btn" onclick="changeVariable(this, 'vientoVel')">Viento</button>
+                </div>
+
+                <div class="chart-wrapper">
+                    <canvas id="detailChart"></canvas>
+                </div>
+
+                <div class="table-container detail-table-mt">
                     <table id="detail-table">
                         <thead id="detail-head"></thead>
                         <tbody id="detail-body"></tbody>
                     </table>
                 </div>
-                <canvas id="detailChart"></canvas>
             </div>
         </section>
     </main>
 
     <div id="mapModal" class="modal">
-        <div class="modal-content">
-            <span class="close">&times;</span>
+        <div class="modal-content shadow">
+            <span class="close-modal">&times;</span>
             <div id="map"></div>
         </div>
     </div>
 
-    <footer>
-        <p>Esta web no utiliza cookies ni recopila datos de ningún tipo.</p>
-        <p>Licencia <a href="https://creativecommons.org/licenses/by-sa/4.0/deed.es" target="_blank">Creative Commons
-                BY-SA 4.0</a></p>
+    <footer class="footer">
+        <div class="container">
+            <p>Esta web no utiliza cookies ni recopila datos de ningún tipo.</p>
+            <p>Licencia <a href="https://creativecommons.org/licenses/by-sa/4.0/" target="_blank">Creative Commons BY-SA
+                    4.0</a></p>
+        </div>
     </footer>
 
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
