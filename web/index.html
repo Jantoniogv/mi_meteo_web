@@ -71,6 +71,13 @@
                     <button class="btn-filter" onclick="loadCustomData()">Aplicar Filtro</button>
                 </div>
 
+                <div class="table-container detail-table-mt">
+                    <table id="detail-table">
+                        <thead id="detail-head"></thead>
+                        <tbody id="detail-body"></tbody>
+                    </table>
+                </div>
+
                 <div class="variable-selector">
                     <span>Ver en gráfico:</span>
                     <button class="var-btn active" onclick="changeVariable(this, 'temp')">Temperatura</button>
@@ -78,13 +85,6 @@
                     <button class="var-btn" onclick="changeVariable(this, 'presion')">Presión</button>
                     <button class="var-btn" onclick="changeVariable(this, 'lluvia')">Lluvia</button>
                     <button class="var-btn" onclick="changeVariable(this, 'vientoVel')">Viento</button>
-                </div>
-
-                <div class="table-container detail-table-mt">
-                    <table id="detail-table">
-                        <thead id="detail-head"></thead>
-                        <tbody id="detail-body"></tbody>
-                    </table>
                 </div>
 
                 <div class="chart-wrapper">

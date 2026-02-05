@@ -121,11 +121,11 @@ function updateChart() {
     if (myChart) myChart.destroy();
 
     const configMap = {
-        temp: { label: 'Temperatura (°C)', color: '#e74c3c', key: 'tempPromedio' },
-        hum: { label: 'Humedad (%)', color: '#9b59b6', key: 'humPromedio' },
-        presion: { label: 'Presión (hPa)', color: '#f1c40f', key: 'presionPromedio' },
-        lluvia: { label: 'Lluvia (mm)', color: '#3498db', key: 'lluviaAcumulada', type: 'bar' },
-        vientoVel: { label: 'Viento (km/h)', color: '#95a5a6', key: 'vientoPromedio' }
+        temp: { label: 'Temperatura (°C)', color: '#e74c3c', key: 'tempMedia' },
+        hum: { label: 'Humedad (%)', color: '#9b59b6', key: 'humMedia' },
+        presion: { label: 'Presión (hPa)', color: '#f1c40f', key: 'presionMedia' },
+        lluvia: { label: 'Lluvia (mm)', color: '#3498db', key: 'lluviaTotal', type: 'bar' },
+        vientoVel: { label: 'Viento (km/h)', color: '#95a5a6', key: 'vientoMedio' }
     };
 
     const c = configMap[currentVar];
