@@ -260,3 +260,18 @@ tbody tr:hover {
     display: none;
     /* Mantener esto para que no ocupe espacio */
 }
+
+/* Cambia el cursor al pasar por encima de un marcador en el mapa */
+.leaflet-marker-icon {
+    cursor: pointer !important;
+}
+
+/* Estilo para el popup del mapa */
+.leaflet-popup-content-wrapper {
+    border-radius: 8px;
+    padding: 5px;
+}
+
+.leaflet-popup-content b {
+    color: #2c3e50;
+}

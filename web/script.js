@@ -211,21 +211,73 @@ function updateChart() {
 }
 
 // 5. MAPA Y ÚTILES
+// --- GESTIÓN DEL MODAL Y CLIC EXTERNO ---
 const modal = document.getElementById("mapModal");
-document.getElementById("openMap").onclick = () => { modal.style.display = "block"; initMap(); };
-document.querySelector(".close-modal").onclick = () => modal.style.display = "none";
 
+// Abrir mapa
+document.getElementById("openMap").onclick = () => {
+    modal.style.display = "block";
+    initMap();
+};
+
+// Cerrar al hacer clic en la (X)
+document.querySelector(".close-modal").onclick = () => {
+    modal.style.display = "none";
+};
+
+// CERRAR AL HACER CLIC FUERA (Modificación solicitada)
+window.onclick = (event) => {
+    if (event.target == modal) {
+        modal.style.display = "none";
+    }
+};
+
+// --- LÓGICA DEL MAPA CON HOVER Y CLIC ---
 function initMap() {
     if (!map) {
         map = L.map('map').setView([40.41, -3.70], 6);
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '© OpenStreetMap'
+        }).addTo(map);
     }
+
     setTimeout(() => {
         map.invalidateSize();
+
+        // Limpiamos marcadores previos para evitar duplicados
+        map.eachLayer((layer) => {
+            if (layer instanceof L.Marker) map.removeLayer(layer);
+        });
+
         estacionesData.forEach(est => {
             if (est.coordenadas) {
-                L.marker([est.coordenadas.lat, est.coordenadas.lng]).addTo(map)
-                    .bindPopup(`<b>${est.localizacion}</b><br><button onclick="showDetailView('${est.estacionId}','${est.localizacion}')">Ver Datos</button>`);
+                const marker = L.marker([est.coordenadas.lat, est.coordenadas.lng]).addTo(map);
+
+                // 1. POPUP AL PASAR EL RATÓN (Hover)
+                marker.on('mouseover', function (e) {
+                    this.bindPopup(`
+                        <div style="text-align:center;">
+                            <strong style="font-size:14px;">${est.localizacion}</strong><hr style="margin:5px 0">
+                            <div style="text-align:left; font-size:12px;">
+                                🌡️ <b>Temp:</b> ${est.temp} °C<br>
+                                💧 <b>Lluvia:</b> ${est.lluvia} mm<br>
+                                ⏲️ <b>Presión:</b> ${est.presion || '--'} hPa<br>
+                                💨 <b>Viento:</b> ${est.vientoVel} km/h
+                            </div>
+                        </div>
+                    `).openPopup();
+                });
+
+                // Opcional: Cerrar popup al quitar el ratón
+                marker.on('mouseout', function (e) {
+                    this.closePopup();
+                });
+
+                // 2. CLIC PARA IR AL DETALLE Y CERRAR MAPA (Modificación solicitada)
+                marker.on('click', function () {
+                    modal.style.display = "none"; // Hace desaparecer el mapa
+                    showDetailView(est.estacionId, est.localizacion); // Lleva a la estación
+                });
             }
         });
     }, 200);
