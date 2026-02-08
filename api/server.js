@@ -22,7 +22,7 @@ const registroSchema = new mongoose.Schema({
     hum: Number,
     lluvia: Number,
     vientoVel: Number,
-    vientoDir: String,
+    vientoDir: Number,
     presion: Number,
     voltaje_bat: Number,
     timestamp: { type: Date, default: Date.now, index: true } // Fecha y hora automática
